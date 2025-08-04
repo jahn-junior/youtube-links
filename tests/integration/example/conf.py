@@ -27,4 +27,5 @@ html_title = project
 
 extensions = [
     "youtube_links",
+    "myst_parser",
 ]
