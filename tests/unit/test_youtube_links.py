@@ -16,12 +16,16 @@
 
 """Unit tests for youtube-links extension."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from docutils.utils import SystemMessage
+# Ignore import organization warnings
+# ruff: noqa: E402
+# ruff: noqa: PLC0415
+
+from unittest.mock import Mock, patch
+
 from docutils.parsers.rst import directives
+from docutils.statemachine import StringList
 from sphinx.application import Sphinx
-from youtube_links import setup, YouTubeLink
+from youtube_links import YouTubeLink, setup
 
 
 class TestYouTubeLinksSetup:
@@ -31,17 +35,17 @@ class TestYouTubeLinksSetup:
         """Test that setup returns proper extension metadata."""
         app_mock = Mock(spec=Sphinx)
         app_mock.add_directive = Mock()
-        
-        with patch('youtube_links.common.add_css') as mock_add_css:
+
+        with patch("youtube_links.common.add_css") as mock_add_css:
             result = setup(app_mock)
-        
-        assert result["version"] == "0.1"
-        assert result["parallel_read_safe"] is True
-        assert result["parallel_write_safe"] is True
-        
+
+        assert result.get("version", "") == "0.1"
+        assert result.get("parallel_read_safe", "") is True
+        assert result.get("parallel_write_safe", "") is True
+
         # Verify the directive is registered
         app_mock.add_directive.assert_called_once_with("youtube", YouTubeLink)
-        
+
         # Verify CSS is added
         mock_add_css.assert_called_once_with(app_mock, "youtube.css")
 
@@ -55,12 +59,12 @@ class TestYouTubeLinkDirective:
             name="youtube",
             arguments=["https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
             options={},
-            content=[],
+            content=StringList(),
             lineno=1,
             content_offset=0,
             block_text="",
             state=Mock(),
-            state_machine=Mock()
+            state_machine=Mock(),
         )
 
     def test_directive_options(self):
@@ -68,15 +72,17 @@ class TestYouTubeLinkDirective:
         assert YouTubeLink.required_arguments == 1
         assert YouTubeLink.optional_arguments == 0
         assert YouTubeLink.has_content is False
-        assert "title" in YouTubeLink.option_spec
-        assert YouTubeLink.option_spec["title"] == directives.unchanged
+
+        directive_spec = YouTubeLink.option_spec if YouTubeLink.option_spec else {}
+        assert "title" in directive_spec
+        assert directive_spec["title"] == directives.unchanged
 
     def test_run_with_custom_title(self):
         """Test directive execution with custom title."""
         self.directive.options = {"title": "Custom Video Title"}
-        
+
         result = self.directive.run()
-        
+
         assert len(result) == 1
         raw_node = result[0]
         # For raw nodes, the HTML content is stored in the node's children as text
@@ -86,54 +92,58 @@ class TestYouTubeLinkDirective:
         assert "youtube_link" in html_content
         assert "Watch on YouTube" in html_content
 
-    @patch('youtube_links.requests.get')
-    @patch('youtube_links.BeautifulSoup')
+    @patch("youtube_links.requests.get")
+    @patch("youtube_links.BeautifulSoup")
     def test_run_with_automatic_title(self, mock_bs, mock_get):
         """Test directive execution with automatic title extraction."""
         # Mock successful HTTP response
         mock_response = Mock()
         mock_response.raise_for_status.return_value = None
-        mock_response.text = "<html><head><title>Amazing Video - YouTube</title></head></html>"
+        mock_response.text = (
+            "<html><head><title>Amazing Video - YouTube</title></head></html>"
+        )
         mock_get.return_value = mock_response
-        
+
         # Mock BeautifulSoup
         mock_soup = Mock()
         mock_soup.title.get_text.return_value = "Amazing Video - YouTube"
         mock_bs.return_value = mock_soup
-        
+
         # Clear the cache to ensure fresh request
         youtube_links.cache.clear()
-        
+
         result = self.directive.run()
-        
+
         assert len(result) == 1
         raw_node = result[0]
         html_content = str(raw_node.children[0]) if raw_node.children else ""
         assert "Amazing Video - YouTube" in html_content
         assert "https://www.youtube.com/watch?v=dQw4w9WgXcQ" in html_content
-        
-        mock_get.assert_called_once_with("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
-    @patch('youtube_links.requests.get')
+        mock_get.assert_called_once_with(
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ", timeout=10
+        )
+
+    @patch("youtube_links.requests.get")
     def test_run_with_http_error(self, mock_get):
         """Test directive execution when HTTP request fails."""
         import requests
-        
+
         # Mock HTTP error
         mock_get.side_effect = requests.HTTPError("404 Not Found")
-        
+
         # Clear the cache to ensure fresh request
         youtube_links.cache.clear()
-        
-        with patch('builtins.print') as mock_print:
+
+        with patch("builtins.print") as mock_print:
             result = self.directive.run()
-        
+
         # Should still return a result, but without title from HTTP
         assert len(result) == 1
         raw_node = result[0]
         html_content = str(raw_node.children[0]) if raw_node.children else ""
         assert "https://www.youtube.com/watch?v=dQw4w9WgXcQ" in html_content
-        
+
         # Should have printed the error
         mock_print.assert_called_once()
 
@@ -142,9 +152,9 @@ class TestYouTubeLinkDirective:
         # Pre-populate cache
         url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         youtube_links.cache[url] = "Cached Title"
-        
+
         result = self.directive.run()
-        
+
         assert len(result) == 1
         raw_node = result[0]
         html_content = str(raw_node.children[0]) if raw_node.children else ""
@@ -153,17 +163,17 @@ class TestYouTubeLinkDirective:
     def test_html_output_structure(self):
         """Test that the generated HTML has the correct structure."""
         self.directive.options = {"title": "Test Title"}
-        
+
         result = self.directive.run()
         raw_node = result[0]
         html_content = str(raw_node.children[0]) if raw_node.children else ""
-        
+
         # Check for expected HTML structure
         assert 'class="youtube_link"' in html_content
         assert 'target="_blank"' in html_content
         assert 'class="play_icon"' in html_content
-        assert '▶' in html_content  # Play icon
-        assert 'Watch on YouTube' in html_content
+        assert "▶" in html_content  # Play icon
+        assert "Watch on YouTube" in html_content
 
 
 # Import the module after defining the tests

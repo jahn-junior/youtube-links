@@ -17,6 +17,7 @@ lint = [
 ]
 types = [
     "types-docutils",
+    "types-requests",
     "types-setuptools",
 ]
 dev = [

@@ -1,3 +1,17 @@
+Metadata-Version: 2.4
+Name: youtube-links
+Version: 0.0.post1+g9802e9e.d20250804
+Summary: A Sphinx extension for embedding YouTube video links.
+License-Expression: GPL-3.0
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: docutils>=0.21.2
+Requires-Dist: sphinx~=7.0
+Requires-Dist: requests
+Requires-Dist: beautifulsoup4
+Dynamic: license-file
+
 # youtube-links
 
 youtube-links adds a Sphinx directive that creates styled YouTube video links with

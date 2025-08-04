@@ -45,20 +45,15 @@ help: ## Show this help.
 		}
 	}'
 
-.PHONY: setup
-setup: install-uv setup-precommit install-build-deps ## Set up a development environment
+.PHONY: install
+install: install-uv install-linters install-precommit install-build-deps ## Set up a development environment
 	uv sync $(UV_TEST_GROUPS) $(UV_LINT_GROUPS)
 
-.PHONY: setup-tests
-setup-tests: install-uv install-build-deps ##- Set up a testing environment without linters
-	uv sync $(UV_TEST_GROUPS)
+.PHONY: install-linters
+install-linters: install-uv install-shellcheck install-pyright install-lint-build-deps
 
-.PHONY: setup-lint
-setup-lint: install-uv install-shellcheck install-pyright install-lint-build-deps  ##- Set up a linting-only environment
-	uv sync $(UV_LINT_GROUPS)
-
-.PHONY: setup-precommit
-setup-precommit: install-uv  ##- Set up pre-commit hooks in this repository.
+.PHONY: install-precommit
+install-precommit: install-uv  ##- Set up pre-commit hooks in this repository.
 ifeq ($(shell which pre-commit),)
 	uv tool run pre-commit install
 else
@@ -68,7 +63,7 @@ endif
 .PHONY: clean
 clean:  ## Clean up the development environment
 	uv tool run pyclean .
-	rm -rf dist/ build/ *.snap .coverage*
+	rm -rf dist/ build/ .test_output/ .coverage*
 
 .PHONY: autoformat
 autoformat: format  # Hidden alias for 'format'
@@ -196,7 +191,7 @@ ifneq ($(CI),)
 	@echo ::endgroup::
 endif
 
-# Below are intermediate targets for setup. They are not included in help as they should
+# Below are intermediate targets for install. They are not included in help as they should
 # not be used independently.
 
 .PHONY: install-uv
