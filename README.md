@@ -5,8 +5,7 @@ automatic title extraction.
 
 ## Basic usage
 
-To add a YouTube link, add the `youtube` directive to your document with the desired
-YouTube URL:
+To add a YouTube link to your document, use the `youtube` directive with YouTube URL:
 
 ```
 .. youtube:: https://www.youtube.com/watch?v=dQw4w9WgXcQ
